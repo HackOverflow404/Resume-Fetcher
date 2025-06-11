@@ -1,0 +1,1 @@
+This project automates the download, storage, and deployment of my resume from Google Docs to multiple local directories, including my Next.js portfolio. It also auto-commits and pushes the updated resume to my GitHub repository to auto update the Next.js site.
