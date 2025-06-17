@@ -42,7 +42,7 @@ async function downloadResume() {
   );
 
   try {
-    execSync("cd ~/Documents/Projects/portfolio && git add ./public/Resume.pdf && git commit -m 'chore: update resume' && git push", {
+    execSync("cd ~/Documents/Projects/portfolio && npm run build && git add ./public/Resume.pdf && git commit -m 'Chore: Update Resume' && git push", {
       stdio: "inherit",
     });
     console.log("Pushed updated resume to portfolio repository.");
