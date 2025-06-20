@@ -1,4 +1,4 @@
-This Node.js project automates the download, storage, and deployment of my resume from Google Docs to multiple local directories, using a GCP Service Account
+This Node.js project automates the download, storage, and deployment of my resume from Google Docs to multiple local directories, using a GCP Service Account.
 
 It also auto-commits and pushes the updated resume to my GitHub repository to auto update my Next.js portfolio website.
 
