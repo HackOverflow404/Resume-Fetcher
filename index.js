@@ -22,6 +22,7 @@ async function downloadResume() {
   const destPaths = [
     resolve("../../job_docs/Resume.pdf"),
     resolve("../portfolio/public/Resume.pdf"),
+    resolve("./Resume.pdf"),
   ];
 
   const res = await drive.files.export(

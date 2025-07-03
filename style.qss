@@ -1,0 +1,67 @@
+/* Global window background */
+QMainWindow {
+    background-color: #2B2B2B;
+}
+
+/* Tree styling */
+QTreeWidget {
+    background-color: #353535;
+    alternate-background-color: #3C3C3C;
+    show-decoration-selected: 1;
+    border: none;
+    outline: none;
+    color: #E0E0E0;
+}
+
+/* Header section */
+QHeaderView::section {
+    background-color: #1E1E1E;
+    color: #CCCCCC;
+    font-weight: 600;
+    padding: 8px;
+    border: none;
+    border-bottom: 1px solid #444444;
+}
+
+/* Items */
+QTreeWidget::item {
+    padding: 8px 12px;
+    margin: 2px 0;
+    border-radius: 4px;
+}
+QTreeWidget::item:hover {
+    background-color: #3A3A3A;
+}
+QTreeWidget::item:selected {
+    background-color: #4A90E2;
+    color: #FFFFFF;
+}
+
+/* Scrollbars */
+QScrollBar:vertical {
+    background: transparent;
+    width: 8px;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background: #606060;
+    min-height: 20px;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #787878;
+}
+QScrollBar::add-line, QScrollBar::sub-line {
+    height: 0px;
+}
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
+}
+
+/* Status bar */
+QStatusBar {
+    background-color: #1E1E1E;
+    color: #BBBBBB;
+    padding: 4px;
+    border-top: 1px solid #444444;
+}
