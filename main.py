@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
 
+import fitz
 import sys
 import re
 import pdftotext
@@ -10,21 +10,48 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 
+def extract_links(pdf_path: str) -> dict:
+    """
+    Return a mapping of anchor text → URL for every URI link annotation in the PDF.
+    """
+    link_map = {}
+    doc = fitz.open(pdf_path)
+    for page in doc:
+        for link in page.get_links():
+            uri = link.get("uri", None)
+            if not uri:
+                continue
+            rect = fitz.Rect(link["from"])
+            anchor = page.get_text("text", clip=rect).strip()
+            if anchor:
+                link_map[anchor] = uri
+    return link_map
 
 def parse_resume(pdf_path: str) -> dict:
     """
-    Parse a resume PDF into a nested dictionary structure.
+    Parse a resume PDF into a nested dictionary structure,
+    but first replace any hyperlink anchor text with its URL.
     """
+    try:
+        link_map = extract_links(pdf_path)
+    except Exception as e:
+        link_map = {}
+        print(f"Warning: could not extract hyperlinks: {e}", file=sys.stderr)
+
     with open(pdf_path, "rb") as f:
         pdf = pdftotext.PDF(f)
 
-    # Join pages, remove zero-width spaces and form feeds
     raw_text = ("\n\n\n\n\n".join(pdf)
                 .replace("\u200b", "")
                 .replace("\x0c", ""))
+
+    for anchor, uri in link_map.items():
+        if uri.startswith("mailto:") or uri.startswith("tel:"):
+            uri = uri.split(":")[1]
+        raw_text = raw_text.replace(anchor, f"{uri}")
+
     paragraphs = [p for p in raw_text.split("\n\n") if p.strip()]
 
-    # Header
     header_lines = []
     for para in paragraphs[:5]:
         for line in para.splitlines():
@@ -33,7 +60,6 @@ def parse_resume(pdf_path: str) -> dict:
                 header_lines.append(text)
     sections = {"Header": header_lines}
 
-    # Other sections
     for para in paragraphs[5:]:
         lines = [l.strip() for l in para.splitlines() if l.strip()]
         if not lines:
@@ -41,7 +67,6 @@ def parse_resume(pdf_path: str) -> dict:
         section_title = lines[0]
         content_lines = lines[1:]
 
-        # Skills section: simple key:list mapping
         if section_title.lower() == "skills":
             skills = {}
             for line in content_lines:
@@ -51,18 +76,15 @@ def parse_resume(pdf_path: str) -> dict:
             sections[section_title] = skills
             continue
 
-        # Subsections
         subsection_entries = {}
         current_entry = None
         last_bullet_idx = None
 
         for line in content_lines:
-            # Special handling for Education entries
             if section_title == "Education" and "|" in line:
                 left, date_part = line.split("|", 1)
                 left = left.strip()
                 date_part = date_part.strip()
-                # Split name/place and degree/major
                 name_place, *rest = [p.strip() for p in left.split("—", 1)]
                 entry = {}
                 if rest:
@@ -71,7 +93,6 @@ def parse_resume(pdf_path: str) -> dict:
                     entry["Degree type"] = deg_parts[0]
                     if len(deg_parts) > 1:
                         entry["Major"] = deg_parts[1]
-                # Split date range
                 dates = re.split(r"\s*-\s*", date_part)
                 entry["Date start"] = dates[0]
                 entry["Date end"] = dates[1] if len(dates) > 1 else dates[0]
@@ -81,7 +102,6 @@ def parse_resume(pdf_path: str) -> dict:
                 last_bullet_idx = None
                 continue
 
-            # Generic header lines (Position, Place, Date)
             if "|" in line:
                 parts = re.split(r"\s*(,|—|\|)\s*", line)
                 name = parts[0].strip()
@@ -102,7 +122,6 @@ def parse_resume(pdf_path: str) -> dict:
                 last_bullet_idx = None
 
             else:
-                # Detail line: bullet or continuation
                 if current_entry is None:
                     raise ValueError(f"Detail line without a header: {line}")
                 if line.startswith("- "):
@@ -141,7 +160,6 @@ class ResumeViewer(QMainWindow):
         self.setCentralWidget(container)
         self.setStatusBar(QStatusBar())
 
-        # Add Ctrl+W shortcut to close
         quit_action = QAction(self)
         quit_action.setShortcut("Ctrl+W")
         quit_action.triggered.connect(self.close)
