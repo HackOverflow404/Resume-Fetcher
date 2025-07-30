@@ -20,8 +20,8 @@ async function downloadResume() {
   const drive = google.drive({ version: "v3", auth });
 
   const destPaths = [
-    resolve("../../job_docs/Resume.pdf"),
-    resolve("../portfolio/public/Resume.pdf"),
+    resolve("/home/d4rkc10ud/Documents/job_docs/Resume.pdf"),
+    resolve("/home/d4rkc10ud/Documents/Projects/portfolio/public/Resume.pdf"),
     resolve("./Resume.pdf"),
   ];
 
