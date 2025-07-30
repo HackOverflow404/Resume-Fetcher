@@ -4,3 +4,6 @@ credentials.json
 
 # Node
 node_modules/
+
+# Unnecessary files
+Resume.pdf
