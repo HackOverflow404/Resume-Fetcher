@@ -1,57 +1,58 @@
-import { finished } from "stream/promises";
 import { execSync } from "child_process";
-import { createWriteStream } from "fs";
-import { join, resolve } from "path";
-import { google } from "googleapis";
-import "dotenv/config";
+import { copyFileSync, existsSync } from "fs";
+import { resolve } from "path";
 
-async function downloadResume() {
-  const docId = process.env["DOC_ID"];
-  if (!docId) {
-    console.error("DOC_ID environment variable not set.");
-    process.exit(1);
-  }
+function run(cmd, cwd) {
+  console.log(`\n$ (cwd=${cwd ?? process.cwd()}) ${cmd}`);
+  execSync(cmd, { stdio: "inherit", cwd });
+}
 
-  const auth = new google.auth.GoogleAuth({
-    keyFile: resolve("credentials.json"),
-    scopes: ["https://www.googleapis.com/auth/drive.readonly"],
-  });
-
-  const drive = google.drive({ version: "v3", auth });
+async function updateResume() {
+  const sourcePath = "/home/hackoverflow/Documents/Projects/Resume/Resume.pdf";
 
   const destPaths = [
-    resolve("/home/d4rkc10ud/Documents/job_docs/Resume.pdf"),
-    resolve("/home/d4rkc10ud/Documents/Projects/portfolio/public/Resume.pdf"),
+    "/home/hackoverflow/Documents/job_docs/Resume.pdf",
+    "/home/hackoverflow/Documents/Projects/portfolio/public/Resume.pdf",
     resolve("./Resume.pdf"),
   ];
 
-  const res = await drive.files.export(
-    {
-      fileId: docId,
-      mimeType: "application/pdf",
-    },
-    { responseType: "stream" }
-  );
+  if (!existsSync(sourcePath)) {
+    console.error("Resume source file not found:", sourcePath);
+    process.exit(1);
+  }
 
-  await Promise.all(
-    destPaths.map(async (destPath) => {
-      const dest = createWriteStream(destPath);
-      res.data.pipe(dest);
-      await finished(dest);
-      console.log(`Written to ${destPath}`);
-    })
-  );
+  for (const destPath of destPaths) {
+    copyFileSync(sourcePath, destPath);
+    console.log(`Copied resume to: ${destPath}`);
+  }
+
+  const portfolioDir = "/home/hackoverflow/Documents/Projects/portfolio";
 
   try {
-    execSync("cd ~/Documents/Projects/portfolio && npm run build && git add ./public/Resume.pdf && git commit -m 'Chore: Update Resume' && git push", {
-      stdio: "inherit",
-    });
-    console.log("Pushed updated resume to portfolio repository.");
+    // 1) Build (this is where your `window is not defined` happens)
+    run("npm run build", portfolioDir);
+
+    // 2) Stage file
+    run("git add public/Resume.pdf", portfolioDir);
+
+    // 3) Commit, but tolerate "nothing to commit"
+    try {
+      run(`git commit -m "Chore: Update Resume"`, portfolioDir);
+    } catch (e) {
+      // If commit failed because there was nothing to commit, just skip push
+      console.log("No changes to commit (git commit failed). Skipping push.");
+      return;
+    }
+
+    // 4) Push
+    run("git push", portfolioDir);
+
+    console.log("Portfolio updated and resume pushed successfully.");
   } catch (err) {
-    console.error("Git commit/push failed:", err);
+    console.error("Git/build step failed:", err);
   }
 }
 
-downloadResume().catch((err) => {
-  console.error("Resume download failed:", err);
+updateResume().catch((err) => {
+  console.error("Resume update failed:", err);
 });
