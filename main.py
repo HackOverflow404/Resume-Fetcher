@@ -33,7 +33,7 @@ def _strip_tex(text: str) -> str:
 
 def _replace_hrefs(tex: str) -> str:
     """
-    Replace \href{url}{text} with the URL (or stripped mailto/tel value).
+    Replace \\href{url}{text} with the URL (or stripped mailto/tel value).
     """
 
     def repl(match):
