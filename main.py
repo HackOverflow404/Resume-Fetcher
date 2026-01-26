@@ -105,32 +105,26 @@ def _split_sections(tex: str) -> list:
 
 
 def _parse_education(body: str) -> dict:
-    """
-    Parse the Education section built with \resumeSubheading.
-    """
     entries = {}
+
     pattern = re.compile(
-        r'\\resumeSubheading\s*'
-        r'{([^}]*)}\s*'  # Institution
-        r'{([^}]*)}\s*'  # Location
-        r'{([^}]*)}\s*'  # Degree
-        r'{([^}]*)}',    # Dates
+        r'\\resumeEductationHeading\s*'
+        r'{([^}]*)}\s*'   # Institution
+        r'{([^}]*)}\s*'   # Dates
+        r'{([^}]*)}',     # Degree / description
         re.DOTALL
     )
 
     for m in pattern.finditer(body):
         institution = _strip_tex(m.group(1))
-        location = _strip_tex(m.group(2))
+        datestr = _strip_tex(m.group(2))
         degree = _strip_tex(m.group(3))
-        datestr = _strip_tex(m.group(4))
 
-        # Split on common dash patterns
         dates = re.split(r'\s*[-–—]{1,2}\s*', datestr)
-        start = dates[0].strip() if dates else ""
+        start = dates[0].strip()
         end = dates[1].strip() if len(dates) > 1 else start
 
         entries[institution] = {
-            "Place": location,
             "Degree": degree,
             "Date start": start,
             "Date end": end,
@@ -159,95 +153,88 @@ def _extract_resume_items(block: str) -> list:
 
 
 def _parse_experience(body: str) -> dict:
-    """
-    Parse the Experience section: \resumeSubheading + \resumeItemListStart/End.
-    """
     entries = {}
-    pattern = re.compile(
-        r'\\resumeSubheading\s*'
+
+    heading_pattern = re.compile(
+        r'\\resumeExperienceHeading\s*'
         r'{([^}]*)}\s*'   # Org
         r'{([^}]*)}\s*'   # Location
         r'{([^}]*)}\s*'   # Position
-        r'{([^}]*)}'      # Dates
-        r'(.+?)\\resumeItemListEnd',
+        r'{([^}]*)}',     # Dates
         re.DOTALL
     )
 
-    for m in pattern.finditer(body):
-        org = _strip_tex(m.group(1))
-        location = _strip_tex(m.group(2))
-        position = _strip_tex(m.group(3))
-        datestr = _strip_tex(m.group(4))
-        block = m.group(5)
+    itemlist_pattern = re.compile(
+        r'\\resumeItemListStart(.+?)\\resumeItemListEnd',
+        re.DOTALL
+    )
+
+    headings = list(heading_pattern.finditer(body))
+    itemlists = list(itemlist_pattern.finditer(body))
+
+    for h, il in zip(headings, itemlists):
+        org = _strip_tex(h.group(1))
+        location = _strip_tex(h.group(2))
+        position = _strip_tex(h.group(3))
+        datestr = _strip_tex(h.group(4))
 
         dates = re.split(r'\s*[-–—]{1,2}\s*', datestr)
-        start = dates[0].strip() if dates else ""
+        start = dates[0].strip()
         end = dates[1].strip() if len(dates) > 1 else start
 
-        bullets = _extract_resume_items(block)
+        bullets = _extract_resume_items(il.group(1))
 
         entries[org] = {
             "Place": location,
             "Position": position,
             "Date start": start,
             "Date end": end,
-            "Data": bullets,
+            "Data": bullets
         }
 
     return entries
 
 
 def _parse_projects(body: str) -> dict:
-    """
-    Parse Projects: \resumeProjectHeading + \resumeItem list.
-    """
     entries = {}
+
     pattern = re.compile(
         r'\\resumeProjectHeading\s*'
-        r'{([^}]*)}\s*'  # Project name
-        r'{([^}]*)}'     # URL
+        r'{([^}]*)}\s*'
+        r'{([^}]*)}'
         r'(.+?)\\resumeItemListEnd',
         re.DOTALL
     )
 
     for m in pattern.finditer(body):
         name = _strip_tex(m.group(1))
-        url = _strip_tex(m.group(2))
-        block = m.group(3)
-
-        bullets = _extract_resume_items(block)
+        url = _strip_tex(_replace_hrefs(m.group(2)))
+        bullets = _extract_resume_items(m.group(3))
 
         entries[name] = {
             "URL": url,
-            "Data": bullets,
+            "Data": bullets
         }
 
     return entries
 
 
 def _parse_research(body: str) -> dict:
-    """
-    Parse Research section: \resumeResearchHeading + \resumeItem list.
-    """
     entries = {}
+
     pattern = re.compile(
         r'\\resumeResearchHeading\s*'
-        r'{([^}]*)}\s*'  # Name / Venue
-        r'{([^}]*)}'     # Role
+        r'{([^}]*)}'
         r'(.+?)\\resumeItemListEnd',
         re.DOTALL
     )
 
     for m in pattern.finditer(body):
-        name = _strip_tex(m.group(1))
-        role = _strip_tex(m.group(2))
-        block = m.group(3)
+        title = _strip_tex(m.group(1))
+        bullets = _extract_resume_items(m.group(2))
 
-        bullets = _extract_resume_items(block)
-
-        entries[name] = {
-            "Role": role,
-            "Data": bullets,
+        entries[title] = {
+            "Data": bullets
         }
 
     return entries
@@ -310,7 +297,7 @@ def parse_resume(tex_path: str) -> dict:
             sections[name] = _parse_projects(body)
         elif name == "Research":
             sections[name] = _parse_research(body)
-        elif name == "Programming Skills":
+        elif name in ("Programming Skills", "Skills"):
             sections[name] = _parse_programming_skills(body)
         else:
             # Fallback: store raw body (stripped)
