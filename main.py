@@ -22,10 +22,20 @@ def _strip_tex(text: str) -> str:
     text = re.sub(r'\\textit{([^}]*)}', r'\1', text)
     # Replace explicit line breaks
     text = text.replace(r'\newline', ' ')
+    # Common inline math symbols used in the resume
+    text = text.replace(r'\times', '×')
+    text = text.replace(r'\vert', '|')
+    text = text.replace(r'\approx', '~')
+    text = text.replace(r'\sim', '~')
+    text = text.replace(r'\rightarrow', '->')
+    # Unescape common escaped special characters (\& \% \$ \# \_)
+    text = re.sub(r'\\([&%$#_])', r'\1', text)
     # Remove remaining simple commands like \hfill (but keep text)
     text = re.sub(r'\\[a-zA-Z]+', '', text)
     # Remove extra braces
     text = text.replace('{', '').replace('}', '')
+    # Remove leftover math-mode delimiters
+    text = text.replace('$', '')
     # Normalize whitespace
     text = re.sub(r'\s+', ' ', text).strip()
     return text
@@ -46,42 +56,49 @@ def _replace_hrefs(tex: str) -> str:
     return re.sub(r'\\href{([^}]*)}{([^}]*)}', repl, tex)
 
 
-def _parse_header(original_tex: str, processed_tex: str) -> list:
+def _parse_header(no_comments_tex: str) -> list:
     """
     Extract header info (name, LinkedIn, Email, Portfolio, Mobile) from the LaTeX.
     """
     header_lines = []
 
-    # Name from \textbf{\href{...}{\Large Name}}
-    name_match = re.search(
-        r'\\textbf{\\href{[^}]*}{\\Large ([^}]*)}}',
-        original_tex
+    # Header block: everything between \begin{document} and the first \section
+    doc_match = re.search(
+        r'\\begin{document}(.*?)\\section', no_comments_tex, re.DOTALL
     )
+    header_block = doc_match.group(1) if doc_match else no_comments_tex
+
+    # Name: either \textbf{{\Large Name}} or the older \textbf{\href{...}{\Large Name}}
+    name_match = re.search(r'\\textbf{\\href{[^}]*}{\\Large ([^}]*)}}', header_block)
+    if not name_match:
+        name_match = re.search(r'\\textbf{{\\Large\s+([^}]*)}}', header_block)
     if name_match:
         header_lines.append(name_match.group(1).strip())
 
-    # Contacts from processed (hrefs -> URLs/text)
-    # Line 1: LinkedIn & Email
-    contact1 = re.search(
-        r'LinkedIn\s*:\s*([^&\\]+)&\s*Email\s*:\s*([^\\]+)\\\\',
-        processed_tex
-    )
-    if contact1:
-        linkedin = contact1.group(1).strip()
-        email = contact1.group(2).strip()
-        header_lines.append(f"LinkedIn: {linkedin}")
-        header_lines.append(f"Email: {email}")
+    # Contacts: bare \href{url}{display} pairs, classified by URL scheme/domain
+    # rather than by label text, since the new template has no labels at all.
+    contacts = {}
+    order = []
+    for url, display in re.findall(r'\\href{([^}]*)}{([^}]*)}', header_block):
+        display = display.strip()
+        if url.startswith("mailto:"):
+            label = "Email"
+        elif url.startswith("tel:"):
+            label = "Mobile"
+        elif "linkedin.com" in url.lower():
+            label = "LinkedIn"
+        else:
+            label = "Portfolio"
+        if label not in contacts:
+            contacts[label] = display
+            order.append(label)
 
-    # Line 2: Portfolio & Mobile
-    contact2 = re.search(
-        r'\n\s*([^&\\]+)&\s*Mobile\s*:\s*([^\\]+)\\\\',
-        processed_tex
-    )
-    if contact2:
-        portfolio = contact2.group(1).strip()
-        mobile = contact2.group(2).strip()
-        header_lines.append(f"Portfolio: {portfolio}")
-        header_lines.append(f"Mobile: {mobile}")
+    for label in ["LinkedIn", "Email", "Portfolio", "Mobile"]:
+        if label in contacts:
+            header_lines.append(f"{label}: {contacts[label]}")
+    for label in order:
+        if label not in ("LinkedIn", "Email", "Portfolio", "Mobile"):
+            header_lines.append(f"{label}: {contacts[label]}")
 
     return header_lines
 
@@ -108,7 +125,7 @@ def _parse_education(body: str) -> dict:
     entries = {}
 
     pattern = re.compile(
-        r'\\resumeEductationHeading\s*'
+        r'\\resumeEducationHeading\s*'
         r'{([^}]*)}\s*'   # Institution
         r'{([^}]*)}\s*'   # Dates
         r'{([^}]*)}',     # Degree / description
@@ -198,10 +215,13 @@ def _parse_experience(body: str) -> dict:
 def _parse_projects(body: str) -> dict:
     entries = {}
 
+    # Second arg is typically \href{url}{display}, i.e. one level of nested
+    # braces, so a plain [^}]* group would stop at the href's inner brace.
+    nested = r'((?:[^{}]|{[^{}]*})*)'
     pattern = re.compile(
         r'\\resumeProjectHeading\s*'
-        r'{([^}]*)}\s*'
-        r'{([^}]*)}'
+        r'{' + nested + r'}\s*'
+        r'{' + nested + r'}'
         r'(.+?)\\resumeItemListEnd',
         re.DOTALL
     )
@@ -242,25 +262,22 @@ def _parse_research(body: str) -> dict:
 
 def _parse_programming_skills(body: str) -> dict:
     """
-    Parse Programming Skills section.
+    Parse the Skills section: a flat list of
+    \\item\\small{\\textbf{Category}: value, value, ...} entries, one per
+    category (categories are not fixed, e.g. "Languages", "Frameworks & Web").
     """
     skills = {}
 
-    lang_match = re.search(
-        r'\\textbf{Languages}{:([^}]*)}',
-        body
+    item_pattern = re.compile(
+        r'\\item\\small{\\textbf{([^}]*)}\s*:\s*([^{}]*)}',
+        re.DOTALL
     )
-    if lang_match:
-        langs = [x.strip() for x in lang_match.group(1).split(",") if x.strip()]
-        skills["Languages"] = langs
-
-    tech_match = re.search(
-        r'\\textbf{Technologies}{:([^}]*)}',
-        body
-    )
-    if tech_match:
-        techs = [x.strip() for x in tech_match.group(1).split(",") if x.strip()]
-        skills["Technologies"] = techs
+    for m in item_pattern.finditer(body):
+        category = _strip_tex(m.group(1))
+        values = [_strip_tex(v) for v in m.group(2).split(",")]
+        values = [v for v in values if v]
+        if category:
+            skills[category] = values
 
     return skills
 
@@ -284,11 +301,14 @@ def parse_resume(tex_path: str) -> dict:
     sections = {}
 
     # Header
-    header_lines = _parse_header(original_tex, processed)
+    header_lines = _parse_header(no_comments)
     sections["Header"] = header_lines
 
     # Split into \section{...}
-    for name, body in _split_sections(processed):
+    for raw_name, body in _split_sections(processed):
+        # Section names can contain escaped chars, e.g. "Leadership \& Involvement"
+        name = _strip_tex(raw_name)
+
         if name == "Education":
             sections[name] = _parse_education(body)
         elif name == "Experience":
@@ -299,6 +319,16 @@ def parse_resume(tex_path: str) -> dict:
             sections[name] = _parse_research(body)
         elif name in ("Programming Skills", "Skills"):
             sections[name] = _parse_programming_skills(body)
+        # Fallback for sections under other names (e.g. "Leadership &
+        # Involvement") that reuse one of the known heading macros.
+        elif r'\resumeExperienceHeading' in body:
+            sections[name] = _parse_experience(body)
+        elif r'\resumeProjectHeading' in body:
+            sections[name] = _parse_projects(body)
+        elif r'\resumeEducationHeading' in body:
+            sections[name] = _parse_education(body)
+        elif r'\resumeResearchHeading' in body:
+            sections[name] = _parse_research(body)
         else:
             # Fallback: store raw body (stripped)
             sections[name] = _strip_tex(body)
@@ -371,7 +401,7 @@ class ResumeViewer(QMainWindow):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Resume LaTeX Viewer")
-    parser.add_argument("path", nargs="?", default="/home/hackoverflow/Documents/Projects/Resume/Resume.tex",
+    parser.add_argument("path", nargs="?", default="/home/hackoverflow404/Documents/Projects/Resume/Resume.tex",
                         help="Path to the resume LaTeX (.tex) file")
     args = parser.parse_args()
 
