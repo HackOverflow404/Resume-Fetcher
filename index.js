@@ -8,12 +8,13 @@ function run(cmd, cwd) {
 }
 
 async function updateResume() {
-  const sourcePath = "/home/hackoverflow/Documents/Projects/Resume/Resume.pdf";
+  const sourcePath = "/home/hackoverflow404/Documents/Projects/Resume/Medhansh_Garg_Resume.pdf";
 
   const destPaths = [
-    "/home/hackoverflow/Documents/job_docs/Resume.pdf",
-    "/home/hackoverflow/Documents/Projects/portfolio/public/Resume.pdf",
-    resolve("./Resume.pdf"),
+    "/home/hackoverflow404/Documents/job_docs/Medhansh_Garg_Resume.pdf",
+    "/mnt/mainframe-shodan/job_docs/Medhansh_Garg_Resume.pdf",
+    "/home/hackoverflow404/Documents/Projects/portfolio/public/Medhansh_Garg_Resume.pdf",
+    resolve("./Medhansh_Garg_Resume.pdf"),
   ];
 
   if (!existsSync(sourcePath)) {
@@ -26,14 +27,14 @@ async function updateResume() {
     console.log(`Copied resume to: ${destPath}`);
   }
 
-  const portfolioDir = "/home/hackoverflow/Documents/Projects/portfolio";
+  const portfolioDir = "/home/hackoverflow404/Documents/Projects/portfolio";
 
   try {
     // 1) Build (this is where your `window is not defined` happens)
     run("npm run build", portfolioDir);
 
     // 2) Stage file
-    run("git add public/Resume.pdf", portfolioDir);
+    run("git add public/Medhansh_Garg_Resume.pdf", portfolioDir);
 
     // 3) Commit, but tolerate "nothing to commit"
     try {
