@@ -18,7 +18,7 @@ A Node.js utility that automates the end-to-end process of fetching my resume fr
   1. Change into my project directory
   2. Rebuild all three resume variants (`swe`, `security`, `infra`) with `make` in `~/Documents/Projects/Resume`
   3. Copy each to `resumes/<variant>/Medhansh_Garg_Resume.pdf` in `~/Documents/job_docs`, the NAS (`/mnt/mainframe-shodan/job_docs`) and this directory
-  4. Copy the `swe` resume to the portfolio's `public/`, then build, commit and push the portfolio
+  4. Copy all three to the portfolio's `public/resumes/<variant>/` (plus `swe` at `public/Medhansh_Garg_Resume.pdf` so existing links keep working), then build, commit and push the portfolio
   5. Return me to my previous working directory
 
 # Python Resume Viewer
