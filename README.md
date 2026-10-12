@@ -16,8 +16,10 @@ A Node.js utility that automates the end-to-end process of fetching my resume fr
   Typing `rupd` will:
 
   1. Change into my project directory
-  2. Execute the download & deployment script (`index.js`)
-  3. Return me to my previous working directory
+  2. Rebuild all three resume variants (`swe`, `security`, `infra`) with `make` in `~/Documents/Projects/Resume`
+  3. Copy each to `resumes/<variant>/Medhansh_Garg_Resume.pdf` in `~/Documents/job_docs`, the NAS (`/mnt/mainframe-shodan/job_docs`) and this directory
+  4. Copy the `swe` resume to the portfolio's `public/`, then build, commit and push the portfolio
+  5. Return me to my previous working directory
 
 # Python Resume Viewer
 

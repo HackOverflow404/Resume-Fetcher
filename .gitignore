@@ -7,3 +7,5 @@ node_modules/
 
 # Unnecessary files
 Medhansh_Garg_Resume.pdf
+resumes/
+index.js.bak.*

@@ -401,7 +401,7 @@ class ResumeViewer(QMainWindow):
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Resume LaTeX Viewer")
-    parser.add_argument("path", nargs="?", default="/home/hackoverflow404/Documents/Projects/Resume/Resume.tex",
+    parser.add_argument("path", nargs="?", default="/home/hackoverflow404/Documents/Projects/Resume/swe/Medhansh_Garg_Resume.tex",
                         help="Path to the resume LaTeX (.tex) file")
     args = parser.parse_args()
 
